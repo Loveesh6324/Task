@@ -1,0 +1,108 @@
+#!/usr/bin/env python3
+
+import argparse
+
+import csv
+
+import boto3
+
+import datetime
+parser = argparse.ArgumentParser()
+
+parser.add_argument('--days', type=int, default=30)
+
+args = parser.parse_args()
+
+now = datetime.datetime.utcnow()
+start = (now - datetime.timedelta(days=args.days)).strftime('%Y-%m-%d')
+
+end = now.strftime('%Y-%m-%d')
+
+# to use a specific profile
+
+session = boto3.session.Session()
+
+cd = session.client('ce', 'us-east-1', aws_access_key_id='AKIAVY4DVZ33QWOAUDXA',
+    aws_secret_access_key='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',)
+
+results = []
+
+token = None
+
+while True:
+
+    if token:
+
+        kwargs = {'NextPageToken': token}
+
+    else:
+
+        kwargs = {}
+
+    data = cd.get_cost_and_usage(TimePeriod={'Start': start, 'End':  end}, Granularity='DAILY', Metrics=['UnblendedCost'], GroupBy=[{'Type': 'DIMENSION', 'Key': 'LINKED_ACCOUNT'}, {'Type': 'DIMENSION', 'Key': 'SERVICE'}], **kwargs)
+
+    results += data['ResultsByTime']
+
+    token = data.get('NextPageToken')
+
+    if not token:
+
+        break
+
+#print('\t'.join(['TimePeriod', 'LinkedAccount', 'Service', 'Amount', 'Unit', 'Estimated']))
+
+header_csv = ['TimePeriod', 'LinkedAccount & Service', 'Amount']
+
+fo=open("h_monthly_cost.csv","w+", newline='')
+
+csv_w=csv.writer(fo)
+
+csv_w.writerow(header_csv)
+
+total = 0
+
+for result_by_time in results:
+
+    for group in result_by_time['Groups']:
+
+        amount = group['Metrics']['UnblendedCost']['Amount']
+
+        unit = group['Metrics']['UnblendedCost']['Unit']
+
+        csv_w.writerow([result_by_time['TimePeriod']['Start'], (group['Keys']), amount])
+
+        total+=float(amount)
+
+
+
+csv_w.writerow(["","Total Cost is ", total])
+
+
+
+fo.close()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+AKIAVEU7MXNELQ662FVA
+6MAI3E++K0B/AEjjNtauVOD1JnYqWd/C6AKQdfHA
